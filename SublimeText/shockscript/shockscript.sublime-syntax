@@ -1,0 +1,1212 @@
+%YAML 1.2
+---
+name: ShockScript
+file_extensions: [sx,shockscript]
+scope: source.sx
+
+variables:
+  IDENTIFIER: '({{IDENTIFIER_START}}|{{UNICODE_ESCAPE}})({{IDENTIFIER_PART}}|{{UNICODE_ESCAPE}})*'
+  IDENTIFIER_SEPARATOR: '(?!{{IDENTIFIER_PART}}|\\)'
+  IDENTIFIER_START: '[\p{L}\$\_\p{Nl}]'
+  IDENTIFIER_PART: '[\p{L}0-9\$\_\p{Nl}\p{Mn}\p{Mc}]'
+  XML_NAME: '[\p{L}_][\p{L}\p{Nd}\.\:\-_]*'
+  UNICODE_ESCAPE: >-
+    (?x) \\ ( u({{HEX_DIGIT}}{4}|\{{{HEX_DIGIT}}+\})
+            | x({{HEX_DIGIT}}{2}|\{{{HEX_DIGIT}}+\})
+            | . )
+  HEX_DIGIT: '[A-Fa-f0-9]'
+  WHITESPACE: '[ \t\p{Zs}]'
+  LINE_BREAK: '[\n\r\x{2028}\x{2029}]'
+
+  COMMON_LANGUAGE_TYPES: '(Number|String|Boolean|NativeInt|uint|int|float|byte|ulong|Vector|Array|RegExp|Date){{IDENTIFIER_SEPARATOR}}(?![\s\t]*\:\:)'
+
+  KEYWORD: >-
+    (?x)( as
+        | break
+        | c(a(se|tch)|onst|ontinue)
+        | d(efault|elete|o|lse)
+        | f(alse|inally|or|unction)
+        | i(f|mport|n(stanceof|ternal)?|s)
+        | n(ew|ull)
+        | p(ackage|r(ivate|otected)|ublic)
+        | return
+        | s(uper|witch)
+        | t(his|hrow|rue|ry|ypeof)
+        | use
+        | v(ar|oid)
+        | w(hile|ith)) {{IDENTIFIER_SEPARATOR}}
+
+  DECIMAL_LITERAL: '(?x) (\d+(\.\d*)? | (\.\d+)) ([Ee][+-]?\d+)?'
+  HEX_LITERAL: '0[Xx]{{HEX_DIGIT}}+'
+
+  ESCAPE_SEQUENCE: >-
+    (?x) \\[0rnfvtb\\\x22\x27\n] | {{UNICODE_ESCAPE}}
+
+  USER_OPERATOR_PUNCTUATOR: >-
+    (?x) ===?|\!==?|\<=|\>=|<<|>>>?|([\+\-\*/\%\&\|\~\^\<\>])
+
+contexts:
+  main:
+    - match: 'package{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.sx
+    - include: directives
+
+  # Definitions
+
+  definitions:
+    - match: '(class){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.class.sx
+      push: classDefinition
+    - match: '(enum){{IDENTIFIER_SEPARATOR}}[\s\t]+(?={{IDENTIFIER_START}})'
+      captures:
+        1: keyword.declaration.enum.sx
+      push: enumDefinition
+    - match: '(var|const){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.sx
+      push: varBindings
+    - match: 'function{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.function.sx
+      push: functionDefinition
+    - match: '(namespace){{IDENTIFIER_SEPARATOR}}[\s\t]+(?={{IDENTIFIER_START}})'
+      captures:
+        1: keyword.declaration.sx
+      push: namespaceDefinition
+    - match: '(interface){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.interface.sx
+      push: interfaceDefinition
+    - match: '(type){{IDENTIFIER_SEPARATOR}}[\s\t]+(?={{IDENTIFIER_START}})(?!(?:as|is|instanceof){{IDENTIFIER_SEPARATOR}})'
+      captures:
+        1: keyword.declaration.sx
+      push: typeDefinition
+    - include: nonExprKeywordStartedStatements
+    - match: '({{IDENTIFIER}})[\s\t]+(class{{IDENTIFIER_SEPARATOR}})'
+      captures:
+        1: keyword.sx
+        10: keyword.declaration.class.sx
+      push: classDefinition
+    - match: '({{IDENTIFIER}})[\s\t]+(enum{{IDENTIFIER_SEPARATOR}})'
+      captures:
+        1: keyword.sx
+        10: keyword.declaration.enum.sx
+      push: enumDefinition
+    - match: '({{IDENTIFIER}})[\s\t]+((var|const){{IDENTIFIER_SEPARATOR}})'
+      captures:
+        1: keyword.sx
+        10: keyword.declaration.sx
+      push: varBindings
+    - match: '({{IDENTIFIER}})[\s\t]+(function{{IDENTIFIER_SEPARATOR}})'
+      captures:
+        1: keyword.sx
+        10: keyword.declaration.function.sx
+      push: functionDefinition
+    - match: '({{IDENTIFIER}})[\s\t]+(namespace{{IDENTIFIER_SEPARATOR}})'
+      captures:
+        1: keyword.sx
+        10: keyword.declaration.sx
+      push: namespaceDefinition
+    - match: '({{IDENTIFIER}})[\s\t]+(interface{{IDENTIFIER_SEPARATOR}})'
+      captures:
+        1: keyword.sx
+        10: keyword.declaration.interface.sx
+      push: interfaceDefinition
+    - match: '({{IDENTIFIER}})[\s\t]+(type{{IDENTIFIER_SEPARATOR}})'
+      captures:
+        1: keyword.sx
+        10: keyword.declaration.sx
+      push: typeDefinition
+    # Attribute combination (`Qux fool`)
+    #
+    # Match keyword-started statements here to avoid
+    # conflict with attribute combination start.
+    - include: keywordStartedStatements
+    - match: '({{IDENTIFIER}})[\s\t]+({{IDENTIFIER}})'
+      captures:
+        1: keyword.sx
+        10: keyword.sx
+      push: attributeCombination
+
+  attributeCombination:
+    - include: comments
+    - match: '(class){{IDENTIFIER_SEPARATOR}}'
+      captures:
+        1: keyword.declaration.class.sx
+      set: classDefinition
+    - match: '(enum){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.enum.sx
+      set: enumDefinition
+    - match: '(var|const){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.sx
+      set: varBindings
+    - match: 'function{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.function.sx
+      set: functionDefinition
+    - match: '(namespace){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.sx
+      set: namespaceDefinition
+    - match: '(interface){{IDENTIFIER_SEPARATOR}}'
+      captures:
+        1: keyword.declaration.interface.sx
+      set: interfaceDefinition
+    - match: '(type){{IDENTIFIER_SEPARATOR}}'
+      captures:
+        1: keyword.declaration.sx
+      set: typeDefinition
+    - match: '{{IDENTIFIER}}'
+      scope: keyword.sx
+    - match: '[\s\t]+'
+    - match: '\n'
+      pop: true
+    - match: '(?<!\n)'
+      pop: true
+
+  classDefinition:
+    - include: ignoreBlank
+    - match: '{{IDENTIFIER}}'
+      scope: entity.name.class.sx
+      set: classDefinitionHeader2
+    - match: '(?<!\n)'
+      pop: true
+
+  classDefinitionHeader2:
+    - include: ignoreBlank
+    - match: 'extends{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.impl.sx
+      set: classDefinitionExtendsClause
+    - match: 'implements{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.impl.sx
+      set: classDefinitionImplementsClause
+    - match: '\.[\s\t]*\<'
+      push:
+        - include: ignoreBlank
+        - match: '{{IDENTIFIER}}|,'
+        - match: '='
+          push: typeAnnotation
+        - match: '>?'
+          pop: true
+    - match: '(?<!\n)'
+      pop: true
+
+  classDefinitionExtendsClause:
+    - match: 'implements{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.impl.sx
+      set: classDefinitionImplementsClause
+    - match: ','
+    - match: '(?=\{)'
+      pop: true
+    - include: subtypeAnnotation
+    - include: permTypeAnnotation
+    - match: '(?<!\n)'
+      pop: true
+
+  classDefinitionImplementsClause:
+    - match: ','
+    - match: '(?=\{)'
+      pop: true
+    - include: subtypeAnnotation
+    - include: permTypeAnnotation
+    - match: '(?<!\n)'
+      pop: true
+
+  enumDefinition:
+    - include: ignoreBlank
+    - match: '({{IDENTIFIER}})'
+      captures:
+        1: entity.name.class.sx
+      set: enumDefinitionHeader2
+    - match: '(?<!\n)'
+      pop: true
+
+  enumDefinitionHeader2:
+    - include: ignoreBlank
+    - match: '\:'
+      set: typeAnnotation
+    - match: '(?<!\n)'
+      pop: true
+
+  namespaceDefinition:
+    - include: ignoreBlank
+    - match: '({{IDENTIFIER}})'
+      scope: entity.name.namespace.sx
+    - match: '=?'
+      pop: true
+
+  functionDefinition:
+    - include: ignoreBlank
+    - match: '(get|set)[\s\t]+({{KEYWORD}})'
+      captures:
+        1: keyword.declaration.sx
+        2: invalid.sx
+      set: functionCommon
+    - match: '(get|set)[\s\t]+({{IDENTIFIER}})'
+      captures:
+        1: keyword.declaration.sx
+        2: entity.name.function.sx
+      set: functionCommon
+    - match: 'delete{{IDENTIFIER_SEPARATOR}}'
+      scope: entity.name.function.sx
+      set: functionCommon
+    - match: '{{IDENTIFIER}}'
+      scope: entity.name.function.sx
+      set: functionCommon
+    - match: '{{USER_OPERATOR_PUNCTUATOR}}'
+      set: functionCommon
+    - match: '(?<!\n)'
+      set: functionCommon
+
+  functionCommon:
+    - include: ignoreBlank
+    - match: '\('
+      scope: punctuation.section.parens.begin.sx
+      set:
+        - match: '\)'
+          scope: punctuation.section.parens.end.sx
+          set: functionCommonReturn
+        - match: '\.\.\.|,'
+        - match: '\:(?!:)'
+          push: typeAnnotation
+        - match: '{{IDENTIFIER}}{{IDENTIFIER_SEPARATOR}}'
+          scope: variable.parameter.sx
+        - match: '='
+          push:
+            - match: '(?=\))|,'
+              pop: true
+            - include: expressions
+            - match: '(?<!\n)'
+              pop: true
+    - match: '(?<!\n)'
+      pop: true
+
+  functionCommonReturn:
+    - include: ignoreBlank
+    - match: ':(?!:)'
+      set: typeAnnotation
+    - match: '\{'
+      scope: punctuation.section.block.begin.sx
+      set: block
+    - match: '(?<!\n)'
+      pop: true
+
+  typeDefinition:
+    - include: ignoreBlank
+    - match: '{{IDENTIFIER}}'
+      scope: entity.name.sx
+      set:
+        - include: ignoreBlank
+        - match: '='
+          set: typeAnnotation
+        - match: '(?<!\n)'
+          pop: true
+    - match: '(?<!\n)'
+      pop: true
+
+  interfaceDefinition:
+    - include: ignoreBlank
+    - match: '{{IDENTIFIER}}'
+      scope: entity.name.sx
+      set: interfaceDefinitionHeader2
+    - match: '(?<!\n)'
+      pop: true
+
+  interfaceDefinitionHeader2:
+    - include: ignoreBlank
+    - match: '\.[\s\t]*\<'
+      push:
+        - include: ignoreBlank
+        - match: '{{IDENTIFIER}}|,'
+        - match: '='
+          push: typeAnnotation
+        - match: '>?'
+          pop: true
+    - match: 'extends{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.impl.sx
+      set: interfaceDefinitionExtendsClause
+    - match: '(?<!\n)'
+      pop: true
+
+  interfaceDefinitionExtendsClause:
+    - include: ignoreBlank
+    - match: '(?=\{)'
+      pop: true
+    - match: ','
+    - include: subtypeAnnotation
+    - include: permTypeAnnotation
+
+  varBindings:
+    - include: ignoreBlank
+    - match: '({{IDENTIFIER}}){{IDENTIFIER_SEPARATOR}}'
+      captures:
+        1: variable.sx
+      set:
+        - include: ignoreBlank
+        - match: ':(?!:)'
+          push: typeAnnotation
+        - match: '='
+          push: expressionBetweenDirectives
+        - match: ','
+          set: varBindings
+        - match: '(?<!\n)'
+          pop: true
+    - match: '\{'
+      scope: punctuation.section.braces.begin.sx
+      set:
+        - include: ignoreBlank
+        - match: '\}'
+          scope: punctuation.section.braces.end.sx
+          set:
+            - include: ignoreBlank
+            - match: '='
+              push: expressionBetweenDirectives
+            - match: ','
+              set: varBindings
+            - match: '(?<!\n)'
+              pop: true
+        - match: '({{IDENTIFIER}}){{IDENTIFIER_SEPARATOR}}'
+          captures:
+            1: variable.sx
+        - match: '\('
+          scope: punctuation.section.parens.begin.sx
+          push:
+            - match: '\)'
+              scope: punctuation.section.parens.end.sx
+              pop: true
+            - include: expressions
+        - match: '::|,'
+        - match: ':'
+          push:
+            - include: pattern
+            - match: '(?=[,\}])'
+              pop: true
+        - match: '.'
+          scope: invalid.sx
+    - match: '\['
+      scope: punctuation.section.brackets.begin.sx
+      set:
+        - match: '\]'
+          scope: punctuation.section.brackets.end.sx
+          set:
+            - include: ignoreBlank
+            - match: '='
+              push: expressionBetweenDirectives
+            - match: ','
+              set: varBindings
+            - match: '(?<!\n)'
+              pop: true
+        - include: pattern
+    - match: ','
+    - match: '(?<!\n)'
+      pop: true
+
+  pattern:
+    - include: ignoreBlank
+    - match: '({{IDENTIFIER}}){{IDENTIFIER_SEPARATOR}}'
+      captures:
+        1: variable.sx
+    - match: '\['
+      scope: punctuation.section.brackets.begin.sx
+      set:
+        - match: '\]'
+          scope: punctuation.section.brackets.end.sx
+          set:
+            - include: pattern
+            - match: '(?<!\n)'
+              pop: true
+    - match: '\{'
+      scope: punctuation.section.braces.begin.sx
+      push:
+        - include: ignoreBlank
+        - match: '\}'
+          scope: punctuation.section.braces.end.sx
+          pop: true
+        - match: '({{IDENTIFIER}}){{IDENTIFIER_SEPARATOR}}'
+          captures:
+            1: variable.sx
+        - match: '\('
+          scope: punctuation.section.parens.begin.sx
+          push:
+            - match: '\)'
+              scope: punctuation.section.parens.end.sx
+              pop: true
+            - include: expressions
+        - match: '::|,'
+        - match: ':'
+          push:
+            - include: pattern
+            - match: '(?=[,\}])'
+              pop: true
+        - match: '.'
+          scope: invalid.sx
+    - match: ','
+
+  # Directives
+
+  directives:
+    - match: '(use){{IDENTIFIER_SEPARATOR}}'
+      captures:
+        1: keyword.control.import.sx
+      push:
+        - match: '(namespace){{IDENTIFIER_SEPARATOR}}'
+          captures:
+            1: keyword.control.import.sx
+          pop: true
+        - match: '(default){{IDENTIFIER_SEPARATOR}}'
+          captures:
+            1: keyword.control.import.sx
+          set:
+            # use default namespace
+            - match: '(namespace){{IDENTIFIER_SEPARATOR}}'
+              captures:
+                1: keyword.control.import.sx
+              pop: true
+            - include: ignoreBlank
+            - match: '(?<!\n)'
+              pop: true
+        - include: ignoreBlank
+        - match: '(?<!\n)'
+          pop: true
+    - match: '(import|include){{IDENTIFIER_SEPARATOR}}'
+      captures:
+        1: keyword.import.sx
+    - include: definitions
+    - include: statements
+
+  # Statements
+
+  statements:
+    - match: '\{'
+      scope: punctuation.section.block.begin.sx
+      push: block
+    # - include: keywordStartedStatements
+    # EmptyStatement
+    - match: ';'
+    - match: ':(?!:)'
+      push:
+        - match: '\n'
+          set:
+            - include: ignoreBlank
+            - match: 'for{{IDENTIFIER_SEPARATOR}}'
+              scope: keyword.control.sx
+              set: forStatement
+            - match: 'do{{IDENTIFIER_SEPARATOR}}'
+              scope: keyword.control.sx
+            - match: 'while{{IDENTIFIER_SEPARATOR}}'
+              scope: keyword.control.sx
+              set: ifStatementOrWhileStatement
+            - match: '(?<!\n)'
+              pop: true
+        - include: ignoreBlank
+        # Labeled statement
+        - match: 'for{{IDENTIFIER_SEPARATOR}}'
+          scope: keyword.control.sx
+          set: forStatement
+        - match: 'do{{IDENTIFIER_SEPARATOR}}'
+          scope: keyword.control.sx
+        - match: 'while{{IDENTIFIER_SEPARATOR}}'
+          scope: keyword.control.sx
+          set: ifStatementOrWhileStatement
+        # Variable binding
+        - match: ''
+          set: typeAnnotation
+    - include: expressions
+
+  block:
+    - match: '\}'
+      pop: true
+      scope: punctuation.section.block.end.sx
+    - include: directives
+
+  nonExprKeywordStartedStatements:
+    - match: 'for{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.control.sx
+      push: forStatement
+    - match: '(if|while){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.control.sx
+      push: ifStatementOrWhileStatement
+    - match: 'do{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.control.sx
+    - match: '(switch)[\s\t]+(type){{IDENTIFIER_SEPARATOR}}'
+      captures:
+        1: keyword.control.sx
+        2: keyword.control.sx
+    # Switch type case
+    - match: '(case)[\s\t]*(\()'
+      captures:
+        1: keyword.control.sx
+        2: punctuation.section.parens.begin.sx
+      push:
+        - match: '\)'
+          section: punctuation.section.parens.end.sx
+          pop: true
+        - match: '\:(?!:)'
+          push: typeAnnotation
+        - include: expressions
+    - match: '(case){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.control.sx
+      push:
+        - match: ':(?!:)'
+          pop: true
+        - include: expressions
+    - match: '(default)[\s\t]*:'
+      captures:
+        1: keyword.control.sx
+    - match: '(default)[\s\t]+(xml)[\s\t]+(namespace){{IDENTIFIER_SEPARATOR}}'
+      captures:
+        1: keyword.control.sx
+        2: keyword.control.sx
+        3: keyword.control.sx
+    - match: '(return|throw){{IDENTIFIER_SEPARATOR}}[\s\n\r\t]*(\{)'
+      captures:
+        1: keyword.other.sx
+        2: punctuation.section.braces.begin.sxx
+      push: objectInitialiser
+    - match: '(return|throw){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.control.sx
+      push: expressionBetweenDirectives
+    - match: '(else|switch|with|try|finally|case|default){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.control.sx
+    - match: 'catch{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.control.sx
+      push:
+        - include: ignoreBlank
+        - match: '\('
+          scope: punctuation.section.parens.begin.sx
+          set:
+            - match: '\)'
+              scope: punctuation.section.parens.end.sx
+              pop: true
+            - include: pattern
+        - match: '(?<!\n)'
+          pop: true
+    - match: '(break|continue)[\s\t]+({{IDENTIFIER}})'
+      captures:
+        1: keyword.control.flow.sx
+        2: entity.name.label.sx
+    - match: '(break|continue){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.control.flow.sx
+
+  keywordStartedStatements:
+    - include: nonExprKeywordStartedStatements
+    - include: keywordStartedExpressions
+
+  forStatement:
+    - include: ignoreBlank
+    - match: 'each{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.control.sx
+      set: forEachStatement
+    - match: '\('
+      scope: punctuation.section.parens.begin.sx
+      push:
+        - include: simpleVarDeclaration
+        - match: 'in{{IDENTIFIER_SEPARATOR}}'
+          scope: keyword.other.sx
+        - match: ';'
+        - match: '\)'
+          scope: punctuation.section.parens.end.sx
+          pop: true
+        - match: '\:(?!:)'
+          push: typeAnnotation
+        - include: expressions
+    - match: '(?<!\n)'
+      pop: true
+
+  simpleVarDeclaration:
+    - match: '(var|const){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.declaration.sx
+      push: varBindings
+
+  forEachStatement:
+    - include: ignoreBlank
+    - match: '\('
+      scope: punctuation.section.parens.begin.sx
+      push:
+        - include: simpleVarDeclaration
+        - match: 'in{{IDENTIFIER_SEPARATOR}}'
+          scope: keyword.other.sx
+        - match: '\)'
+          scope: punctuation.section.parens.end.sx
+          pop: true
+        - match: '\:(?!:)'
+          push: typeAnnotation
+        - include: expressions
+    - match: '(?<!\n)'
+      pop: true
+
+  ifStatementOrWhileStatement:
+    - include: ignoreBlank
+    - match: '\('
+      scope: punctuation.section.parens.begin.sx
+      push:
+        - match: '\)'
+          scope: punctuation.section.parens.end.sx
+          pop: true
+        - match: '\:(?!:)'
+          push: typeAnnotation
+        - include: simpleVarDeclaration
+        - include: expressions
+    - match: '(?<!\n)'
+      pop: true
+
+  # Expressions
+
+  expressionBetweenDirectives:
+    - match: '(?=[\}\]\)]|(use|return|if|switch|var|const|for|while|throw|class|interface|case|default|do|else|import|try|catch|finally){{IDENTIFIER_SEPARATOR}})'
+      pop: true
+    - match: '(?=(enum|namespace|function|type)[\s\t]+{{IDENTIFIER}}{{IDENTIFIER_SEPARATOR}})'
+      pop: true
+    - match: '(?=include[\s\t]+[\x22\x27])'
+      pop: true
+    - match: '(?={{IDENTIFIER}}[\s\n\t\r]*\:[\s\n\t\r]*(?:for|while|do){{IDENTIFIER_SEPARATOR}})'
+      pop: true
+    - match: '(?={{IDENTIFIER}}[\s\t]+{{IDENTIFIER}}{IDENTIFIER_SEPARATOR}})'
+      pop: true
+    - include: expressions
+    - match: '(?!\n)|(?<!\n)'
+      pop: true
+
+  expressions:
+    - include: ignoreBlank
+    - match: ','
+    - include: keywordStartedExpressions
+    - match: '{{KEYWORD}}'
+      scope: invalid.sx
+    - match: '(::)[\s\t]*(\[)'
+      captures:
+        1: variable.sx
+        2: punctuation.section.brackets.begin.sx
+      push:
+        - match: '\]'
+          scope: punctuation.section.brackets.end.sx
+          pop: true
+        - include: expressions
+    - match: '{{IDENTIFIER}}[\s\t]*(::[\s\t]*{{IDENTIFIER}})?[\s\t]*(?=\()'
+      scope: variable.function.sx
+    - match: '{{COMMON_LANGUAGE_TYPES}}'
+      scope: constant.language.sx
+    - match: '{{IDENTIFIER}}|::'
+      scope: variable.sx
+      push: ambiguitySubexpressions
+    - include: stringLiteral
+    - match: '\.[\s\t]*\<'
+      push:
+        - match: '\>'
+          pop: true
+        - match: ','
+        - include: subtypeAnnotation
+        - include: permTypeAnnotation
+    - match: '{{HEX_LITERAL}}|{{DECIMAL_LITERAL}}'
+      scope: constant.numeric.sx
+      push: ambiguitySubexpressions
+    - match: '=[\s\n\r\t]*(\{)'
+      captures:
+        1: punctuation.section.braces.begin.sx
+      push: objectInitialiser
+    - match: '/'
+      push: regExpLiteralInner
+
+    # ternary operator
+    - match: '\?'
+      push:
+        - match: ':(?!:)'
+          set:
+            - include: ignoreBlank
+            - match: '\{'
+              captures:
+                1: punctuation.section.braces.begin.sx
+              set: objectInitialiser
+            - match: '(?!\n)'
+              pop: true
+        - include: expressionBetweenDirectives
+
+    # xml literal
+    - match: '\<({{XML_NAME}})'
+      captures:
+        1: entity.name.tag.sx
+      push: xmlInitialiser
+
+    # xml literal
+    - match: '\<\>'
+      push: xmlInitialiserContent
+
+    # xml literal
+    - match: '\<(\{)'
+      captures:
+        1: punctuation.section.braces.begin.sx
+      push:
+        - match: '\}'
+          scope: punctuation.section.braces.end.sx
+          set: xmlInitialiser
+        - include: expressions
+
+    - match: '\('
+      scope: punctuation.section.parens.begin.sx
+      push:
+        - match: '\)'
+          scope: punctuation.section.parens.end.sx
+          set: ambiguitySubexpressions
+        - include: expressions
+    - match: '\['
+      scope: punctuation.section.brackets.begin.sx
+      push:
+        - match: '\]'
+          scope: punctuation.section.brackets.end.sx
+          set: ambiguitySubexpressions
+        - match: '\.\.\.'
+        - include: expressions
+    - match: '\{'
+      scope: punctuation.section.braces.begin.sx
+      push: objectInitialiser
+    - match: ':(?!:)'
+      push: typeAnnotation
+    - match: '\@'
+    - include: xmlMarkupInitialisers
+    - match: '[\.\<\>\=\+\-\*\/\%\&\^\|\~\!]'
+    - match: '[\}\]\)]'
+      scope: invalid.sx
+
+  objectInitialiser:
+    - match: '\}'
+      scope: punctuation.section.braces.end.sx
+      pop: true
+    - match: '\:(?!:)'
+      push:
+        - match: ','
+          pop: true
+        - match: '(?=\})'
+          pop: true
+        - include: expressions
+    - match: '\.\.\.'
+    - include: expressions
+
+  keywordStartedExpressions:
+    - match: '(yield|void){{IDENTIFIER_SEPARATOR}}[\s\n\r\t]*(\{)'
+      captures:
+        1: keyword.other.sx
+        2: punctuation.section.braces.begin.sxx
+      push: objectInitialiser
+    - match: '(public|private|protected|internal|this|super|typeof|void|yield|in|delete){{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.other.sx
+      push: ambiguitySubexpressions
+    - match: '(as|instanceof|is){{IDENTIFIER_SEPARATOR}}'
+      captures:
+        1: keyword.other.sx
+      push: typeAnnotationAfterTypeOperator
+    - match: '(null|true|false){{IDENTIFIER_SEPARATOR}}'
+      scope: constant.language.sx
+    - match: 'new[\s\t]*\<'
+      scope: keyword.operator.sx
+      push:
+        - match: '>'
+          pop: true
+        - include: typeAnnotationAfterTypeOperator
+    - match: 'new{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.operator.sx
+      push: typeAnnotation
+    - match: 'function{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.other.sx
+      push:
+        - include: ignoreBlank
+        - match: '{{KEYWORD}}'
+          scope: invalid.sx
+        - match: '{{IDENTIFIER}}'
+          scope: entity.name.function.sx
+        - match: '(?<!\n)'
+          set: functionCommon
+    - match: 'embed[\s\t]*(?=[\x22\x27])'
+      scope: keyword.other.sx
+      push:
+        - include: stringLiteral
+        - match: '(?<!\n)'
+          pop: true
+    - match: '({{IDENTIFIER}})[\s\t]+(in){{IDENTIFIER_SEPARATOR}}'
+      captures:
+        10: keyword.other.sx
+    - match: '({{IDENTIFIER}})[\s\t]+(as|instanceof|is){{IDENTIFIER_SEPARATOR}}'
+      captures:
+        10: keyword.other.sx
+      push: typeAnnotationAfterTypeOperator
+
+  stringLiteral:
+    - match: '"""'
+      push:
+        - meta_scope: string.quoted.triple.sx
+        - match: '{{ESCAPE_SEQUENCE}}'
+          scope: constant.character.escape.sx
+        - match: '"""'
+          pop: true
+    - match: "'''"
+      push:
+        - meta_scope: string.quoted.triple.sx
+        - match: '{{ESCAPE_SEQUENCE}}'
+          scope: constant.character.escape.sx
+        - match: "'''"
+          pop: true
+    - match: "'"
+      push:
+        - meta_scope: string.quoted.single.sx
+        - match: '{{ESCAPE_SEQUENCE}}'
+          scope: constant.character.escape.sx
+        - match: "['\n]"
+          pop: true
+    - match: '"'
+      push:
+        - meta_scope: string.quoted.double.sx
+        - match: '{{ESCAPE_SEQUENCE}}'
+          scope: constant.character.escape.sx
+        - match: '["\n]'
+          pop: true
+
+  regExpLiteralInner:
+    - meta_scope: string.sx
+    - match: '/{{IDENTIFIER}}'
+      pop: true
+    - match: '/'
+      pop: true
+    - match: '\\.'
+
+  xmlInitialiser:
+    - match: '{{XML_NAME}}'
+      scope: entity.other.attribute-name.sx
+    - match: '\x22'
+      push:
+        - meta_scope: string.sx
+        - match: '\x22'
+          pop: true
+    - match: "\x27"
+      push:
+        - meta_scope: string.sx
+        - match: "\x27"
+          pop: true
+    - match: '>'
+      set: xmlInitialiserContent
+    - match: '/>'
+      pop: true
+    - match: '\{'
+      scope: punctuation.section.braces.begin.sx
+      push:
+        - match: '\}'
+          scope: punctuation.section.braces.end.sx
+          pop: true
+        - include: expressions
+
+  xmlInitialiserContent:
+    - match: '\<({{XML_NAME}})'
+      captures:
+        1: entity.name.tag.sx
+      push: xmlInitialiser
+    - match: '\<(\{)'
+      captures:
+        1: punctuation.section.braces.begin.sx
+      push:
+        - match: '\}'
+          scope: punctuation.section.braces.end.sx
+          set: xmlInitialiser
+        - include: expressions
+    - match: '</({{XML_NAME}})[\s\t]*>'
+      captures:
+        1: entity.name.tag.sx
+      pop: true
+    - match: '\<\/\>'
+      pop: true
+    - match: '\</(\{)'
+      captures:
+        1: punctuation.section.braces.begin.sx
+      set:
+        - match: '(\})[\s\t]*\>'
+          captures:
+            1: punctuation.section.braces.end.sx
+          pop: true
+        - include: expressions
+    - include: xmlMarkupInitialisers
+
+  xmlMarkupInitialisers:
+    - match: '<\!\[CDATA\['
+      push:
+        - meta_scope: string.sx
+        - match: ']]>'
+          pop: true
+    - match: '<\?'
+      push:
+        - meta_scope: string.sx
+        - match: '\?>'
+          pop: true
+    - match: '<\!\-\-'
+      push:
+        - meta_scope: string.sx
+        - match: '\-\->'
+          pop: true
+
+  ambiguitySubexpressions:
+    - include: ignoreBlank
+    - match: '/=?'
+      pop: true
+    - match: '\<'
+      pop: true
+    - match: '(?![<\s\t\n\r/]|/=)'
+      pop: true
+
+  # Type annotations
+
+  typeAnnotationAfterTypeOperator:
+    - match: 'void{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.sx
+      set: typeAnnotationAfterTypeOperator2
+    - match: '\*'
+      set: typeAnnotationAfterTypeOperator2
+    - match: '{{COMMON_LANGUAGE_TYPES}}'
+      scope: constant.language.sx
+      set: typeAnnotationAfterTypeOperator2
+    - match: '{{IDENTIFIER}}'
+      set:
+        - include: ignoreBlank
+        - match: '\.{{IDENTIFIER}}'
+        - match: '::[\s\t]*{{IDENTIFIER}}'
+        - match: '(?!\n)'
+          set: typeAnnotationAfterTypeOperator2
+    - match: '\.'
+    - match: 'function{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.sx
+      set:
+        - match: '\('
+          push:
+            - match: '\.\.\.'
+            - match: '\)'
+              pop: true
+            - match: '[,=]'
+            - include: subtypeAnnotation
+            - include: permTypeAnnotation
+        - match: ':(?!:)'
+          set: typeAnnotationAfterTypeOperator
+        - match: '(?!\n)'
+          set: typeAnnotationAfterTypeOperator2
+    - match: '\('
+      set:
+        - match: '\)'
+          set: typeAnnotationAfterTypeOperator2
+        - match: ','
+        - match: '|'
+          scope: invalid.sx
+        - include: subtypeAnnotation
+        - include: permTypeAnnotation
+    - match: '\['
+      set:
+        - match: '\]'
+          set: typeAnnotationAfterTypeOperator2
+        - match: ',|\.\.\.'
+        - include: subtypeAnnotation
+        - include: permTypeAnnotation
+    - match: '\{'
+      scope: punctuation.section.braces.begin.sx
+      set:
+        - include: ignoreBlank
+        - match: '\}'
+          scope: punctuation.section.braces.end.sx
+          set: typeAnnotationAfterTypeOperator2
+        - match: '({{IDENTIFIER}}){{IDENTIFIER_SEPARATOR}}'
+          captures:
+            1: variable.sx
+        - match: '\('
+          scope: punctuation.section.parens.begin.sx
+          push:
+            - match: '\)'
+              scope: punctuation.section.parens.end.sx
+              set: typeAnnotationAfterTypeOperator2
+            - include: expressions
+        - match: '::|,'
+        - match: ':'
+          push:
+            - match: '(?=[,\}])'
+              set: typeAnnotationAfterTypeOperator2
+            - include: pattern
+            - match: '(?<!\n)'
+              set: typeAnnotationAfterTypeOperator2
+
+  typeAnnotationAfterTypeOperator2:
+    - include: ignoreBlank
+    - match: ':'
+      set: typeAnnotationAfterTypeOperator
+    - match: ''
+      pop: true
+
+  typeAnnotation:
+    - include: ignoreBlank
+    - match: '\?'
+    - match: '\*'
+      set: typeAnnotationContinuation
+    - match: 'void{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.sx
+      set: typeAnnotationContinuation
+    - match: 'function{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.sx
+      set:
+        - match: '\('
+          push:
+            - match: '\.\.\.'
+            - match: '\)'
+              pop: true
+            - match: '[,=]'
+            - include: subtypeAnnotation
+            - include: permTypeAnnotation
+        - match: ':(?!:)'
+          push: typeAnnotation
+        - match: '(?<!\n)'
+          set: typeAnnotationContinuation
+    - match: '{{COMMON_LANGUAGE_TYPES}}'
+      scope: constant.language.sx
+      set: typeAnnotationContinuation
+    - match: '{{IDENTIFIER}}([\s\t]*::[\s\t]*{{IDENTIFIER}})?'
+      set: typeAnnotationContinuation
+    - match: '\('
+      set:
+        - match: '\)'
+          set: typeAnnotationContinuation
+        - match: ','
+        - match: '|'
+          scope: invalid.sx
+        - include: subtypeAnnotation
+        - include: permTypeAnnotation
+    - match: '\['
+      set:
+        - match: '\]'
+          set: typeAnnotationContinuation
+        - match: ',|\.\.\.'
+        - include: subtypeAnnotation
+        - include: permTypeAnnotation
+    - match: '\{'
+      scope: punctuation.section.braces.begin.sx
+      set:
+        - include: ignoreBlank
+        - match: '\}'
+          scope: punctuation.section.braces.end.sx
+          set: typeAnnotationContinuation
+        - match: '({{IDENTIFIER}}){{IDENTIFIER_SEPARATOR}}'
+          captures:
+            1: variable.sx
+        - match: '\('
+          scope: punctuation.section.parens.begin.sx
+          push:
+            - match: '\)'
+              scope: punctuation.section.parens.end.sx
+              pop: true
+            - include: expressions
+        - match: '::|,'
+        - match: ':'
+          push:
+            - match: '(?=[,\}])'
+              pop: true
+            - include: pattern
+            - match: '(?<!\n)'
+              pop: true
+    - match: '(?<!\n)'
+      pop: true
+
+  permTypeAnnotation:
+    - include: ignoreBlank
+    - match: '(void{{IDENTIFIER_SEPARATOR}})'
+      scope: keyword.sx
+    - match: '\*'
+    - match: 'function{{IDENTIFIER_SEPARATOR}}'
+      scope: keyword.sx
+      push:
+        - match: '\('
+          push:
+            - match: '\.\.\.'
+            - match: '\)'
+              pop: true
+            - match: '[,=]'
+            - include: subtypeAnnotation
+            - include: permTypeAnnotation
+        - match: ':(?!:)'
+          push: typeAnnotation
+        - match: '(?<!\n)'
+          pop: true
+    - match: '{{COMMON_LANGUAGE_TYPES}}'
+      scope: constant.language.sx
+    - match: '{{IDENTIFIER}}|::'
+    - match: '\('
+      push:
+        - match: '\)'
+          pop: true
+        - match: ','
+        - match: '|'
+          scope: invalid.sx
+        - include: subtypeAnnotation
+        - include: permTypeAnnotation
+    - match: '\['
+      push:
+        - match: '\]'
+          pop: true
+        - match: ','
+        - include: subtypeAnnotation
+        - include: permTypeAnnotation
+    - match: '\{'
+      scope: punctuation.section.braces.begin.sx
+      push:
+        - include: ignoreBlank
+        - match: '\}'
+          scope: punctuation.section.braces.end.sx
+          pop: true
+        - match: '({{IDENTIFIER}}){{IDENTIFIER_SEPARATOR}}'
+          captures:
+            1: variable.sx
+        - match: '\('
+          scope: punctuation.section.parens.begin.sx
+          push:
+            - match: '\)'
+              scope: punctuation.section.parens.end.sx
+              pop: true
+            - include: expressions
+        - match: '::|,'
+        - match: ':'
+          push:
+            - match: '(?=[,\}])'
+              pop: true
+            - include: pattern
+            - match: '(?<!\n)'
+              pop: true
+    - match: '(?<!\n)'
+      pop: true
+
+  typeAnnotationContinuation:
+    - match: '\n'
+      pop: true
+    - include: ignoreBlank
+    - include: subtypeAnnotation
+    - match: '(?<!\n)'
+      pop: true
+
+  subtypeAnnotation:
+    - match: '\.'
+      push:
+        - match: '\<'
+          set:
+            - match: '\>'
+              pop: true
+            - match: ','
+            - include: subtypeAnnotation
+            - include: permTypeAnnotation
+        - match: '{{IDENTIFIER}}'
+        - match: '(?<!\n)'
+          pop: true
+    - match: ':'
+      push: typeAnnotation
+    - match: '\?'
+
+  # Miscellanous
+
+  ignoreBlank:
+    - match: '{{WHITESPACE}}'
+    - match: '\n'
+    - match: '\r'
+    - include: comments
+
+  comments:
+    - match: '//.*?$'
+      scope: comment.sx
+    - match: '/\*'
+      push: multiLineComment
+
+  multiLineComment:
+      - meta_scope: comment.block.sx
+      - match: '\*/'
+        pop: true
+      - match: '/\*'
+        push: multiLineComment
