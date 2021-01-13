@@ -1,0 +1,12 @@
+%YAML 1.2
+---
+name: DoveScript
+file_extensions: [ds, dovescript]
+scope: source.ds
+
+variables:
+  a: A
+
+contexts:
+    main:
+      - match: '(:)'
